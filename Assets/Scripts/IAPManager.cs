@@ -11,25 +11,31 @@ namespace SuperStar.IAP
     public class IAPManager : MonoBehaviour, IDetailedStoreListener
     {
         IStoreController m_StoreController;
-
+        IExtensionProvider m_StoreExtensionProvider;
         public bool isLocalValidation = false;
-        [Header("CONSUMABLE")]        
+        [Header("CONSUMABLE")]
         //Your products IDs. They should match the ids of your products in your store.
+        //public string PRODUCT_CONSUMABLE1 = "com.superstar.riken.gold1";
+        //public string PRODUCT_CONSUMABLE2 = "com.superstar.riken.diamond1";
+
+        //[Header("SUBSCRIPTION")]
+        //public string PRODUCT_SUBSCRIPTION = "com.superstar.riken.vip";
+
+        //[Header("NON CONSUMABLE")]
+        //public string PRODUCT_NON_CONSUMABLE = "com.superstar.riken.noads";
         public string PRODUCT_CONSUMABLE1 = "com.superstar.riken.gold1";
         public string PRODUCT_CONSUMABLE2 = "com.superstar.riken.diamond1";
-        
-
 
         [Header("SUBSCRIPTION")]
-        public  string PRODUCT_SUBSCRIPTION = "com.superstar.riken.vip";
-        
-
-
+        public string PRODUCT_SUBSCRIPTION = "com.randomlogicgames.solitaire.499month";
 
         [Header("NON CONSUMABLE")]
-        public  string PRODUCT_NON_CONSUMABLE = "com.superstar.riken.noads";
+        public string PRODUCT_NON_CONSUMABLE = "randomlogicgames.solitaireinfinite.removeads";
 
-
+        public Text NoadsText;
+        public Text GoldText;
+        public Text DiamondText;
+        public Text SubscriptionText;
         public int NoAds
         {
             get
@@ -41,62 +47,100 @@ namespace SuperStar.IAP
                 PlayerPrefs.SetInt("NoAds", value);
             }
         }
+        public int Subscribe
+        {
+            get
+            {
+                return PlayerPrefs.GetInt("Subscribe", 0);
+            }
+            set
+            {
+                PlayerPrefs.SetInt("Subscribe", value);
+            }
+        }
 
         int m_GoldCount;
         int m_DiamondCount;
 
         void Start()
         {
-            InitializePurchasing();
-            UpdateUIConsumable();
-            UpdateUISubscription();
+            if (m_StoreController == null)
+            {
+                // Begin to configure our connection to Purchasing
+                InitializePurchasing();
+            }
+            //UpdateUIConsumable();
+            //UpdateUISubscription();
+            //UpdateUIRemoveAds();
         }
 
         void InitializePurchasing()
         {
+            if (IsInitialized())
+            {
+                return;
+            }
             var builder = ConfigurationBuilder.Instance(StandardPurchasingModule.Instance());
 
             //Add products that will be purchasable and indicate its type.
+            builder.AddProduct(PRODUCT_SUBSCRIPTION, ProductType.Subscription);
+            builder.AddProduct(PRODUCT_NON_CONSUMABLE, ProductType.NonConsumable);
             builder.AddProduct(PRODUCT_CONSUMABLE1, ProductType.Consumable);
             builder.AddProduct(PRODUCT_CONSUMABLE2, ProductType.Consumable);
 
-            builder.AddProduct(PRODUCT_SUBSCRIPTION, ProductType.Subscription);
-
-            builder.AddProduct(PRODUCT_NON_CONSUMABLE, ProductType.NonConsumable);
-
             UnityPurchasing.Initialize(this, builder);
         }
+        private bool IsInitialized()
+        {
+            // Only say we are initialized if both the Purchasing references are set.
+            return m_StoreController != null && m_StoreExtensionProvider != null;
+        }
 
+        void BuyProductID(string productId)
+        {
+            Debug.LogError("BuyProductID => " + productId);
+            if (IsInitialized())
+            {
+                m_StoreController.InitiatePurchase(productId);
+            }
+            else
+            {
+                Debug.Log("BuyProductID FAIL. Not initialized.");
+            }
+        }
         public void BuyGold()
         {
-            m_StoreController.InitiatePurchase(PRODUCT_CONSUMABLE1);
+            BuyProductID(PRODUCT_CONSUMABLE1);
         }
 
         public void BuyDiamond()
         {
-            m_StoreController.InitiatePurchase(PRODUCT_CONSUMABLE2);
+            BuyProductID(PRODUCT_CONSUMABLE2);
         }
 
         public void BuyNoAds()
         {
-            m_StoreController.InitiatePurchase(PRODUCT_NON_CONSUMABLE);
+            BuyProductID(PRODUCT_NON_CONSUMABLE);
         }
 
         public void BuySubscription()
         {
-            m_StoreController.InitiatePurchase(PRODUCT_SUBSCRIPTION);
+            BuyProductID(PRODUCT_SUBSCRIPTION);
         }
 
         public void OnInitialized(IStoreController controller, IExtensionProvider extensions)
         {
             Debug.Log("In-App Purchasing successfully initialized");
             m_StoreController = controller;
+            m_StoreExtensionProvider = extensions;
+            UpdateUIConsumable();
+             UpdateUIRemoveAds();
         }
 
         public void OnInitializeFailed(InitializationFailureReason error)
         {
             OnInitializeFailed(error, null);
-
+            UpdateUIRemoveAds();
             UpdateUISubscription();
         }
 
@@ -131,8 +175,23 @@ namespace SuperStar.IAP
                     {
                         AddDiamond();
                     }
+                    else if (product.definition.id == PRODUCT_NON_CONSUMABLE)
+                    {
+                        NoAds = 1;
+                        //ApplovinAdmanager.Instance.hideBanner();
+                        Debug.LogError("No Ads Purchased");
+                        Debug.LogError("Ad Hide");
+                        NoadsText.text = "NO ADS PURCHASED";
+                        UpdateUIRemoveAds();
+                    }
+                    else if (product.definition.id == PRODUCT_SUBSCRIPTION)
+                    {
+                        UpdateUISubscription();
+                        SubscriptionText.text = "SUBSCRIPTION PURCHASED";
+                    }
 
-                    UpdateUISubscription();
+
+                    // UpdateUISubscription();
 
                     Debug.Log("Valid receipt, unlocking content.");
                 }
@@ -142,9 +201,9 @@ namespace SuperStar.IAP
                 }
 
             }
-            else 
-            { 
-            
+            else
+            {
+
                 if (product.definition.id == PRODUCT_CONSUMABLE1)
                 {
                     AddGold();
@@ -153,18 +212,28 @@ namespace SuperStar.IAP
                 {
                     AddDiamond();
                 }
-
+                else if (product.definition.id == PRODUCT_NON_CONSUMABLE)
+                {
+                    NoAds = 1;
+                    //ApplovinAdmanager.Instance.hideBanner();
+                    Debug.LogError("No Ads Purchased");
+                    Debug.LogError("Ad Hide");
+                    NoadsText.text = "ADS PURCHASED";
+                    UpdateUIRemoveAds();
+                }
+                else if (product.definition.id == PRODUCT_SUBSCRIPTION)
+                {
+                    UpdateUISubscription();
+                    SubscriptionText.text = "SUBSCRIPTION PURCHASED";
+                }
                 //subscription Data
-                UpdateUISubscription();
+               // UpdateUISubscription();
             }
-
-            //Add the purchased product to the players inventory
-
             Debug.Log($"Purchase Complete - Product: {product.definition.id}");
-
             //We return Complete, informing IAP that the processing on our side is done and the transaction can be closed.
             return PurchaseProcessingResult.Complete;
         }
+
 
         public void OnPurchaseFailed(Product product, PurchaseFailureReason failureReason)
         {
@@ -177,51 +246,105 @@ namespace SuperStar.IAP
                 $" Purchase failure reason: {failureDescription.reason}," +
                 $" Purchase failure details: {failureDescription.message}");
         }
+        public void UpdateUIRemoveAds()
+        {
+            Debug.LogError("UpdateUIRemoveAds");
+            var subscriptionProduct = m_StoreController.products.WithID(PRODUCT_NON_CONSUMABLE);
+            try
+            {
+                var isSubscribed = IsPurchasedTo(subscriptionProduct);
+                isSubscribed = isSubscribed ? true : false;
+                if (isSubscribed)
+                {
+                    NoAds = 1;
+                    //ApplovinAdmanager.Instance.hideBanner();
+                    Debug.LogError("No Ads Purchased");
+                    Debug.LogError("Ad Hide");
+                    NoadsText.text = "NO ADS PURCHASED";
+                }
+                else
+                {
 
+                    Debug.LogError("No Ads Not Purchased");
+                    NoadsText.text = "NOT ADS PURCHASED";
+                }
+            }
+            catch (StoreSubscriptionInfoNotSupportedException)
+            {
+                Debug.LogError("Some exception occureed");
+                // NoAds
+                //isSubscribedText.text =
+                //    "Couldn't retrieve subscription information because your current store is not supported.\n" +
+                //    $"Your store: \"{store}\"\n\n" +
+                //    "You must use the App Store, Google Play Store or Amazon Store to be able to retrieve subscription information.\n\n" +
+                //    "For more information, see README.md";
+            }
+
+        }
+        bool IsPurchasedTo(Product subscription)
+        {
+            // If the product doesn't have a receipt, then it wasn't purchased and the user is therefore not subscribed.
+            if (subscription.receipt == null)
+            {
+                return false;
+            }
+            Debug.LogError("Receipt not null");
+
+
+            return true;
+        }
         void AddGold()
         {
             m_GoldCount++;
             UpdateUIConsumable();
+            GoldText.text ="Gold "+ m_GoldCount.ToString();
         }
 
         void AddDiamond()
         {
             m_DiamondCount++;
             UpdateUIConsumable();
+            DiamondText.text ="Diamond "+ m_DiamondCount.ToString();
         }
 
         void UpdateUIConsumable()
         {
-            //consumable UI
-            Debug.Log("Your Gold:" +m_GoldCount);
+           
+                Debug.Log("Your Gold:" + m_GoldCount);
             Debug.Log("Your Diamonds:" + m_DiamondCount);
-
-          
+            //consumable UI
         }
 
         void UpdateUISubscription()
         {
-           
-            //Subscription UI
             var subscriptionProduct = m_StoreController.products.WithID(PRODUCT_SUBSCRIPTION);
-
             try
             {
                 var isSubscribed = IsSubscribedTo(subscriptionProduct);
-                string subText = isSubscribed ? "You are subscribed" : "You are not subscribed";
-                Debug.Log(subText);
+                isSubscribed = isSubscribed ? true : false;
+
+                if (isSubscribed)
+                {
+                    print("Subscribed");
+                    Subscribe = 1;
+                    SubscriptionText.text = "SUBSCRIPTION PURCHASED";
+                    Debug.Log("Active Acubscription");
+                }
+                else
+                {
+                    print("Un subscribed");
+                    Subscribe = 0;
+                    Debug.Log("DeActive Acubscription");
+                    SubscriptionText.text = " NOT SUBSCRIPTION PURCHASED";
+
+                }
             }
             catch (StoreSubscriptionInfoNotSupportedException)
             {
                 var receipt = (Dictionary<string, object>)MiniJson.JsonDecode(subscriptionProduct.receipt);
                 var store = receipt["Store"];
-                string subText =
-                    "Couldn't retrieve subscription information because your current store is not supported.\n" +
-                    $"Your store: \"{store}\"\n\n" +
-                    "You must use the App Store, Google Play Store or Amazon Store to be able to retrieve subscription information.\n\n" +
-                    "For more information, see README.md";
-
-                Debug.Log(subText);
+                Debug.Log("DeActive Acubscription");
+                Debug.LogError("Exception occure");
             }
 
         }
@@ -246,22 +369,22 @@ namespace SuperStar.IAP
 
         #region LOCALVALIDATION
         CrossPlatformValidator m_Validator = null;
-        
 
-        void InitializeValidator()
-        {
-            if (IsCurrentStoreSupportedByValidator())
-            {
-#if !UNITY_EDITOR
-                var appleTangleData = m_UseAppleStoreKitTestCertificate ? AppleStoreKitTestTangle.Data() : AppleTangle.Data();
-                m_Validator = new CrossPlatformValidator(GooglePlayTangle.Data(), appleTangleData, Application.identifier);
-#endif
-            }
-            else
-            {
-                WarnInvalidStore(StandardPurchasingModule.Instance().appStore);
-            }
-        }
+
+//        void InitializeValidator()
+//        {
+//            if (IsCurrentStoreSupportedByValidator())
+//            {
+//#if !UNITY_EDITOR
+//                var appleTangleData = m_UseAppleStoreKitTestCertificate ? AppleStoreKitTestTangle.Data() : AppleTangle.Data();
+//                m_Validator = new CrossPlatformValidator(GooglePlayTangle.Data(), appleTangleData, Application.identifier);
+//#endif
+//            }
+//            else
+//            {
+//                WarnInvalidStore(StandardPurchasingModule.Instance().appStore);
+//            }
+//        }
 
         bool IsPurchaseValid(Product product)
         {
@@ -311,7 +434,7 @@ namespace SuperStar.IAP
             var warningMsg = $"The cross-platform validator is not implemented for the currently selected store: {currentAppStore}. \n" +
                              "Build the project for Android, iOS, macOS, or tvOS and use the Google Play Store or Apple App Store. See README for more information.";
             Debug.LogWarning(warningMsg);
-           
+
         }
 
         static void LogReceipts(IEnumerable<IPurchaseReceipt> receipts)
