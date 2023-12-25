@@ -74,14 +74,8 @@ public void BuySubscription()
 }
 ```
 
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
 ## Acknowledgments
 
 - Unity IAP documentation: [Unity IAP Documentation](https://docs.unity3d.com/Manual/UnityIAP.html)
-- [OpenAI](https://www.openai.com/) for GPT-3.5 language model.
-```
 
 Replace the placeholder product IDs, text components, and other details with your specific information. Additionally, you may want to provide more details about the project structure, dependencies, or any special instructions for users.
