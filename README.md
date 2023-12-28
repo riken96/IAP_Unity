@@ -17,7 +17,7 @@ Follow these steps to integrate the IAP Manager into your Unity project:
 1. Clone the repository to your local machine:
 
    ```bash
-   git clone https://github.com/your-username/your-repository.git
+   git clone https://github.com/riken96/IAP_Unity.git
    ```
 
 2. Open the Unity project and ensure that Unity IAP is set up correctly.
